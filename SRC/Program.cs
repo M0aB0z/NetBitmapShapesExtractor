@@ -2,8 +2,8 @@
 using System.Diagnostics;
 using System.Drawing;
 
-var outputPicture = @"C:\temp\structureChart2_OUTPUT.png";
-var img = new Bitmap(@"C:\temp\structureChart2.png");
+var outputPicture = @"C:\temp\structureChart_OUTPUT.png";
+var img = new Bitmap(@"C:\temp\structureChart_DEBUG.png");
 
 var stopWatch = new Stopwatch();
 stopWatch.Start();
