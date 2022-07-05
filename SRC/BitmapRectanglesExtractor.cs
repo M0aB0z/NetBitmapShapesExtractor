@@ -32,153 +32,94 @@ namespace ShapesDetector
             }
             return vals.Any() ? vals.Average() : double.MaxValue;
         }
+        private static bool IsContrast(this Color pixel, Color color) => pixel.CompareTo(color) > 50;
         private static Color GetBackgroundColor(this Bitmap bmp)
         {
             var colors = new List<Color> { bmp.GetPixel(0, 0), bmp.GetPixel(0, bmp.Height - 1), bmp.GetPixel(bmp.Width - 1, 0), bmp.GetPixel(bmp.Width - 1, bmp.Height - 1) };
             return colors.GroupBy(x => x).OrderByDescending(y => y.Count()).First().Key;
         }
-        private static Guid? FindClothestBlockId(this Dictionary<(int, int), BorderSegment> segments, int fromX, int top, int tolerance)
+        private static (int, int)? FindNearBlockPixelPosition(this Dictionary<(int, int), Guid> knownPixels, int fromX, int top, int tolerance)
         {
             for (var startLeftTolerance = 0; startLeftTolerance <= tolerance; startLeftTolerance++)
             {
                 for (var topTolerance = 0; topTolerance <= tolerance; topTolerance++)
                 {
                     var segmentKey = (fromX - startLeftTolerance, top - topTolerance);
-                    if (segments.ContainsKey(segmentKey))
-                        return segments[segmentKey].BlockId;
+                    if (knownPixels.ContainsKey(segmentKey))
+                        return segmentKey;
                 }
             }
             return null;
         }
         private static int Width(this BorderSegment segment) => segment.ToX - segment.FromX;
-        private static bool AnyContinousHorizontalBorder(this Dictionary<(int, int), BorderSegment> segmentsPerStartX, int y, int startX, int toX, int tolerance, bool fromTop)
+
+        private static RectangleF[] ExtractCompleteShapes(this Bitmap img, BorderSegment[] topBorders, Dictionary<Guid, int> leftBordersHeightPerBlocksIds)
         {
-            var minWidth = toX - startX - tolerance;
-            for (var decalLeft = 0; decalLeft < tolerance; decalLeft++)
-            {
-                for (var decalTop = 0; decalTop < tolerance; decalTop++)
-                {
-                    var lineKey = (startX + decalLeft, fromTop ? y + decalTop : y - decalTop);
-                    if (segmentsPerStartX.ContainsKey(lineKey))
-                    {
-                        var lineSegment = segmentsPerStartX[lineKey];
-                        if (lineSegment.Width() >= minWidth)
-                            return true;
-                    }
-                }
-            }
-            return false;
+            return default;
         }
-        private static bool AnyContinousVerticalBorder(this Dictionary<(int, int), BorderSegment> segmentsPerMaxX, int x, int startY, int toY, int tolerance, bool fromLeft)
-        {
-            for (var yIndex = startY; yIndex < toY; yIndex++)
-            {
-                var found = false;
-                for (var decalLeft = 0; decalLeft < tolerance && !found; decalLeft++)
-                {
-                    for (var decalTop = 0; decalTop < tolerance && !found; decalTop++)
-                    {
-                        var lineKey = (fromLeft ? x + decalLeft : x - decalLeft, yIndex + decalTop);
-                        if (segmentsPerMaxX.ContainsKey(lineKey))
-                            found = true;
-                    }
-                }
-                if (!found)
-                    return false;
-            }
-            return true;
-        }
-        private static RectangleF[] ConvertSegmentsToRectangle(this Dictionary<(int, int), BorderSegment> horizontalSegments, int stepIdx, int minHeight, int minWidth, int tolerance)
-        {
-            var blocks = new List<RectangleF>();
-            foreach (var blockGroup in horizontalSegments.Values.GroupBy(x => x.BlockId))
-            {
-                var minY = blockGroup.Min(block => block.Y);
-                var maxY = blockGroup.Max(block => block.Y);
-                var blockHeight = maxY - minY;
-                if (blockHeight < minHeight)
-                    continue;
-
-                var minX = blockGroup.Min(block => block.FromX);
-                var maxX = blockGroup.Max(block => block.ToX);
-                var blockWidth = maxX - minX;
-                if (blockWidth < minWidth)
-                    continue;
-
-                if (!horizontalSegments.AnyContinousHorizontalBorder(minY, minX, maxX, tolerance, true)) // check top border
-                    continue;
-                if (!horizontalSegments.AnyContinousHorizontalBorder(maxY, minX, maxX, tolerance, false)) // check top border
-                    continue;
-                if (!horizontalSegments.AnyContinousVerticalBorder(minX, minY, maxY, tolerance, true)) // check left border
-                    continue;
-
-                var verticalSegments = blockGroup.ToDictionary(x => (x.ToX, x.Y));
-                if (!verticalSegments.AnyContinousVerticalBorder(maxX, minY, maxY, tolerance, false)) // check right border
-                    continue;
-
-                blocks.Add(new RectangleF(minX, minY, blockWidth, blockHeight));
-            }
-
-            return blocks.ToArray();
-        }
-        public static RectangleF[] ExtractRectangles(this Bitmap img, int tolerance = 5, int minHeightBlock = 15, int minWidthBlock = 40)
+        public static RectangleF[] ExtractRectangles(this Bitmap img, int tolerance = 2, int minHeightBlock = 15, int minWidthBlock = 40)
         {
             var baseColor = img.GetBackgroundColor();
             int currentTop = 0;
-            var horizontalSegmentsPerXY = new Dictionary<(int, int), BorderSegment>();
+            var topBordersPerPosition = new Dictionary<Guid, BorderSegment>();
+            var borderHeightsPerBlocksIds = new Dictionary<Guid, int>();
+            var blockIdsPerPixels = new Dictionary<(int, int), Guid>();
             var currentStartSegmentX = -1;
             while (currentTop < img.Height)
             {
                 var currentLeft = 0;
                 while (currentLeft < img.Width)
                 {
-                    var dist = img.GetPointColorDist(currentLeft, currentTop, 1, 1, 1, baseColor);
-                    if (dist < 50)
+                    if (img.GetPixel(currentLeft, currentTop).IsContrast(baseColor)) // Contrast detected
                     {
-                        if (currentStartSegmentX > -1) // this is an end of a previously detected border 
+                        var knownBlockPixelPos = blockIdsPerPixels.FindNearBlockPixelPosition(currentLeft, currentTop, tolerance);
+
+                        if (knownBlockPixelPos != null)
                         {
-                            var blockId = horizontalSegmentsPerXY.FindClothestBlockId(currentStartSegmentX, currentTop, tolerance) ?? Guid.NewGuid();
-                            var blockKey = (currentStartSegmentX, currentTop);
-                            var segment = new BorderSegment(currentStartSegmentX, currentLeft, currentTop, blockId);
-
-                            horizontalSegmentsPerXY[blockKey] = segment;
-
-                            currentStartSegmentX = -1;
+                            blockIdsPerPixels[(currentLeft, currentTop)] = blockIdsPerPixels[knownBlockPixelPos.Value];
+                            var prevLineKey = (currentLeft, currentTop - 1);
+                            if (blockIdsPerPixels.ContainsKey(prevLineKey)
+                                && topBordersPerPosition[blockIdsPerPixels[prevLineKey]].FromX == currentLeft)
+                            {
+                                borderHeightsPerBlocksIds[blockIdsPerPixels[prevLineKey]]++;
+                            }
+                        }
+                        else if (currentStartSegmentX == -1)// this is a start of a new borders
+                        {
+                            currentStartSegmentX = currentLeft;
                         }
                     }
-                    else if (currentStartSegmentX == -1) // this is a start of a new border
+                    else
                     {
-                        currentStartSegmentX = currentLeft;
+                        if (currentStartSegmentX > -1 && currentLeft - currentStartSegmentX >= minWidthBlock) // this is an end of a previously detected border 
+                        {
+                            var prevStartBlockKey = (currentStartSegmentX, currentTop - 1);
+                            if (!blockIdsPerPixels.ContainsKey(prevStartBlockKey))
+                            {
+                                var topBorder = new BorderSegment(currentStartSegmentX, currentLeft, currentTop, Guid.NewGuid());
+                                topBordersPerPosition[topBorder.BlockId] = topBorder;
+                                blockIdsPerPixels[(currentStartSegmentX, currentTop)] = topBorder.BlockId;
+                                borderHeightsPerBlocksIds[topBorder.BlockId] = 1;
+                            }
+                            else
+                            {
+                                blockIdsPerPixels[(currentStartSegmentX, currentTop)] = blockIdsPerPixels[prevStartBlockKey];
+                            }
+                        }
+                        currentStartSegmentX = -1;
+
                     }
                     currentLeft++;
                 }
-                //while (currentLeft > 0)
-                //{
-                //    var dist = img.GetPointColorDist(currentLeft, currentTop, 1, 1, 1, baseColor);
-                //    if (dist < 50)
-                //    {
-                //        if (currentStartSegmentX > -1) // this is an end of a previously detected border 
-                //        {
-                //            var blockId = horizontalSegmentsPerXY.FindClothestBlockId(currentStartSegmentX, currentTop, tolerance) ?? Guid.NewGuid();
-                //            var blockKey = (currentStartSegmentX, currentTop);
-                //            var segment = new BorderSegment(currentStartSegmentX, currentLeft, currentTop, blockId);
 
-                //            horizontalSegmentsPerXY[blockKey] = segment;
-
-                //            currentStartSegmentX = -1;
-                //        }
-                //    }
-                //    else if (currentStartSegmentX == -1) // this is a start of a new border
-                //    {
-                //        currentStartSegmentX = currentLeft;
-                //    }
-                //    currentLeft --;
-                //}
                 currentStartSegmentX = -1;
-                currentTop ++;
+                currentTop++;
             }
 
-            return horizontalSegmentsPerXY.ConvertSegmentsToRectangle(1, minHeightBlock, minWidthBlock, tolerance);
+            topBordersPerPosition.Count();
+            return img.ExtractCompleteShapes(topBordersPerPosition.Values.ToArray(), borderHeightsPerBlocksIds
+                                    .Where(x => x.Value >= minHeightBlock && topBordersPerPosition.ContainsKey(x.Key))
+                                    .ToDictionary(x => x.Key, y => y.Value));
         }
 
     }
