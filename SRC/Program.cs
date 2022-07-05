@@ -3,7 +3,7 @@ using System.Diagnostics;
 using System.Drawing;
 
 var outputPicture = @"C:\temp\structureChart_OUTPUT.png";
-var img = new Bitmap(@"C:\temp\structureChart_DEBUG.png");
+var img = new Bitmap(@"C:\temp\structureChart4.png");
 
 var stopWatch = new Stopwatch();
 stopWatch.Start();
@@ -25,5 +25,9 @@ if(blocks.Any())
 
 img.Save(outputPicture);
 
+
+Process.Start("C:\\windows\\system32\\rundll32.exe",
+    "C:\\WINDOWS\\System32\\shimgvw.dll,ImageView_Fullscreen "
+    + outputPicture);
 Console.WriteLine($"END in {stopWatch.Elapsed.TotalSeconds} seconds");
 Console.ReadLine();

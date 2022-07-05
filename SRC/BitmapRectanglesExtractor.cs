@@ -15,23 +15,6 @@ namespace ShapesDetector
 
             return diff;
         }
-        private static double GetPointColorDist(this Bitmap bmp, int fromX, int fromY, int pointWidth, int pointHeight, int stepSize, Color color)
-        {
-            var vals = new List<double>();
-            for (var x = fromX; x < fromX + pointWidth; x++)
-            {
-                for (var y = fromY; y < fromY + pointHeight; y++)
-                {
-                    if (x <= bmp.Width - stepSize && y <= bmp.Height - stepSize)
-                    {
-                        var px = bmp.GetPixel(x, y);
-                        vals.Add(px.CompareTo(color));
-                    }
-                    else return vals.Any() ? vals.Average() : double.MaxValue;
-                }
-            }
-            return vals.Any() ? vals.Average() : double.MaxValue;
-        }
         private static bool IsContrast(this Color pixel, Color color) => pixel.CompareTo(color) > 50;
         private static Color GetBackgroundColor(this Bitmap bmp)
         {
@@ -51,11 +34,54 @@ namespace ShapesDetector
             }
             return null;
         }
-        private static int Width(this BorderSegment segment) => segment.ToX - segment.FromX;
 
-        private static RectangleF[] ExtractCompleteShapes(this Bitmap img, BorderSegment[] topBorders, Dictionary<Guid, int> leftBordersHeightPerBlocksIds)
+        private static bool IsValidRightBorder(this Dictionary<(int, int), Guid> knownPoints, BorderSegment topBorder, int borderHeight, int tolerance)
         {
-            return default;
+            var errors = 0;
+            for (var y = topBorder.Y; y < topBorder.Y + borderHeight; y++)
+            {
+                var found = false;
+                for (var x = topBorder.ToX; x > topBorder.ToX - tolerance && !found; x--)
+                {
+                    if (knownPoints.ContainsKey((x, y)))
+                        found = true;
+                }
+                if (!found && ++errors == tolerance)
+                    return false;
+            }
+            return true;
+        }
+        private static bool IsValidBottomBorder(this Dictionary<(int, int), Guid> knownPoints, BorderSegment topBorder, int borderHeight, int tolerance)
+        {
+            var errors = 0;
+            var endY = topBorder.Y + borderHeight;
+            for (var x = topBorder.FromX; x < topBorder.ToX; x++)
+            {
+                var found = false;
+                for (var y = endY; y > endY - tolerance && !found; y--)
+                {
+                    if (knownPoints.ContainsKey((x, y)))
+                        found = true;
+                }
+                if (!found && ++errors == tolerance)
+                    return false;
+            }
+            return true;
+        }
+        private static RectangleF[] ExtractCompleteShapes(this Dictionary<(int, int), Guid> blocksIdsPerPositions, BorderSegment[] topBorders, Dictionary<Guid, int> leftBordersHeightPerBlocksIds, int tolerance)
+        {
+            var res = new List<RectangleF>();
+            foreach (var top in topBorders)
+            {
+                if (!leftBordersHeightPerBlocksIds.ContainsKey(top.BlockId)) // Invalid left border
+                    continue;
+                if (!blocksIdsPerPositions.IsValidRightBorder(top, leftBordersHeightPerBlocksIds[top.BlockId], tolerance))
+                    continue;
+                if (!blocksIdsPerPositions.IsValidBottomBorder(top, leftBordersHeightPerBlocksIds[top.BlockId], tolerance))
+                    continue;
+                res.Add(new RectangleF(top.FromX, top.Y, top.ToX - top.FromX, leftBordersHeightPerBlocksIds[top.BlockId]));
+            };
+            return res.ToArray();
         }
         public static RectangleF[] ExtractRectangles(this Bitmap img, int tolerance = 2, int minHeightBlock = 15, int minWidthBlock = 40)
         {
@@ -107,7 +133,6 @@ namespace ShapesDetector
                             }
                         }
                         currentStartSegmentX = -1;
-
                     }
                     currentLeft++;
                 }
@@ -117,9 +142,9 @@ namespace ShapesDetector
             }
 
             topBordersPerPosition.Count();
-            return img.ExtractCompleteShapes(topBordersPerPosition.Values.ToArray(), borderHeightsPerBlocksIds
+            return blockIdsPerPixels.ExtractCompleteShapes(topBordersPerPosition.Values.ToArray(), borderHeightsPerBlocksIds
                                     .Where(x => x.Value >= minHeightBlock && topBordersPerPosition.ContainsKey(x.Key))
-                                    .ToDictionary(x => x.Key, y => y.Value));
+                                    .ToDictionary(x => x.Key, y => y.Value), tolerance);
         }
 
     }
