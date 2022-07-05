@@ -41,7 +41,7 @@ namespace ShapesDetector
             for (var y = topBorder.Y; y < topBorder.Y + borderHeight; y++)
             {
                 var found = false;
-                for (var x = topBorder.ToX; x > topBorder.ToX - tolerance && !found; x--)
+                for (var x = topBorder.ToX; x >= topBorder.ToX - tolerance && !found; x--)
                 {
                     if (knownPoints.ContainsKey((x, y)))
                         found = true;
@@ -58,12 +58,12 @@ namespace ShapesDetector
             for (var x = topBorder.FromX; x < topBorder.ToX; x++)
             {
                 var found = false;
-                for (var y = endY; y > endY - tolerance && !found; y--)
+                for (var y = endY; y >= endY - tolerance && !found; y--)
                 {
                     if (knownPoints.ContainsKey((x, y)))
                         found = true;
                 }
-                if (!found && ++errors == tolerance)
+                if (!found && errors++ == tolerance)
                     return false;
             }
             return true;
@@ -83,9 +83,10 @@ namespace ShapesDetector
             };
             return res.ToArray();
         }
-        public static RectangleF[] ExtractRectangles(this Bitmap img, int tolerance = 2, int minHeightBlock = 15, int minWidthBlock = 40)
+        public static RectangleF[] ExtractRectangles(this Bitmap img, int tolerance = 3, int minHeightBlock = 15, int minWidthBlock = 40)
         {
             var baseColor = img.GetBackgroundColor();
+ 
             int currentTop = 0;
             var topBordersPerPosition = new Dictionary<Guid, BorderSegment>();
             var borderHeightsPerBlocksIds = new Dictionary<Guid, int>();
@@ -104,8 +105,7 @@ namespace ShapesDetector
                         {
                             blockIdsPerPixels[(currentLeft, currentTop)] = blockIdsPerPixels[knownBlockPixelPos.Value];
                             var prevLineKey = (currentLeft, currentTop - 1);
-                            if (blockIdsPerPixels.ContainsKey(prevLineKey)
-                                && topBordersPerPosition[blockIdsPerPixels[prevLineKey]].FromX == currentLeft)
+                            if (blockIdsPerPixels.ContainsKey(prevLineKey) && topBordersPerPosition[blockIdsPerPixels[prevLineKey]].FromX == currentLeft)
                             {
                                 borderHeightsPerBlocksIds[blockIdsPerPixels[prevLineKey]]++;
                             }
@@ -141,7 +141,6 @@ namespace ShapesDetector
                 currentTop++;
             }
 
-            topBordersPerPosition.Count();
             return blockIdsPerPixels.ExtractCompleteShapes(topBordersPerPosition.Values.ToArray(), borderHeightsPerBlocksIds
                                     .Where(x => x.Value >= minHeightBlock && topBordersPerPosition.ContainsKey(x.Key))
                                     .ToDictionary(x => x.Key, y => y.Value), tolerance);
