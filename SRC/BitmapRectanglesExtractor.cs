@@ -21,7 +21,7 @@ namespace ShapesDetector
             var colors = new List<Color> { bmp.GetPixel(0, 0), bmp.GetPixel(0, bmp.Height - 1), bmp.GetPixel(bmp.Width - 1, 0), bmp.GetPixel(bmp.Width - 1, bmp.Height - 1) };
             return colors.GroupBy(x => x).OrderByDescending(y => y.Count()).First().Key;
         }
-        private static (int, int)? FindNearBlockPixelPosition(this Dictionary<(int, int), Guid> knownPixels, int fromX, int top, int tolerance)
+        private static (int, int)? FindNearKnownBlockPixelPosition(this Dictionary<(int, int), Guid> knownPixels, int fromX, int top, int tolerance)
         {
             for (var startLeftTolerance = 0; startLeftTolerance <= tolerance; startLeftTolerance++)
             {
@@ -81,25 +81,22 @@ namespace ShapesDetector
                     continue;
                 res.Add(new RectangleF(top.FromX, top.Y, top.ToX - top.FromX, leftBordersHeightPerBlocksIds[top.BlockId]));
             };
-            return res.ToArray();
+            return res.Where(block => !res.Any(x => x.Size.Height > block.Height && x.IntersectsWith(block))).ToArray();
         }
         public static RectangleF[] ExtractRectangles(this Bitmap img, int tolerance = 3, int minHeightBlock = 15, int minWidthBlock = 40)
         {
             var baseColor = img.GetBackgroundColor();
- 
-            int currentTop = 0;
+
             var topBordersPerPosition = new Dictionary<Guid, BorderSegment>();
             var borderHeightsPerBlocksIds = new Dictionary<Guid, int>();
             var blockIdsPerPixels = new Dictionary<(int, int), Guid>();
-            var currentStartSegmentX = -1;
-            while (currentTop < img.Height)
+            for (int currentTop = 0, currentStartSegmentX = -1, currentXBreak = 0; currentTop < img.Height; currentTop++)
             {
-                var currentLeft = 0;
-                while (currentLeft < img.Width)
+                for (var currentLeft = 0; currentLeft < img.Width; currentLeft++)
                 {
                     if (img.GetPixel(currentLeft, currentTop).IsContrast(baseColor)) // Contrast detected
                     {
-                        var knownBlockPixelPos = blockIdsPerPixels.FindNearBlockPixelPosition(currentLeft, currentTop, tolerance);
+                        var knownBlockPixelPos = blockIdsPerPixels.FindNearKnownBlockPixelPosition(currentLeft, currentTop, tolerance);
 
                         if (knownBlockPixelPos != null)
                         {
@@ -115,9 +112,9 @@ namespace ShapesDetector
                             currentStartSegmentX = currentLeft;
                         }
                     }
-                    else
+                    else if (currentStartSegmentX > -1 && (++currentXBreak >= tolerance || currentLeft >= img.Width - tolerance))
                     {
-                        if (currentStartSegmentX > -1 && currentLeft - currentStartSegmentX >= minWidthBlock) // this is an end of a previously detected border 
+                        if (currentLeft - currentStartSegmentX >= minWidthBlock && !img.GetPixel(currentLeft, currentTop + tolerance).IsContrast(baseColor)) // this is an end of a previously detected border 
                         {
                             var prevStartBlockKey = (currentStartSegmentX, currentTop - 1);
                             if (!blockIdsPerPixels.ContainsKey(prevStartBlockKey))
@@ -134,11 +131,9 @@ namespace ShapesDetector
                         }
                         currentStartSegmentX = -1;
                     }
-                    currentLeft++;
                 }
 
                 currentStartSegmentX = -1;
-                currentTop++;
             }
 
             return blockIdsPerPixels.ExtractCompleteShapes(topBordersPerPosition.Values.ToArray(), borderHeightsPerBlocksIds

@@ -30,6 +30,6 @@ for(var index=0;index<=4;index++)
     //    "C:\\WINDOWS\\System32\\shimgvw.dll,ImageView_Fullscreen "
     //    + outputPicture);
     Console.WriteLine($"[{outputPicture}] END in {stopWatch.Elapsed.TotalSeconds} seconds / {blocks.Length} blocks");
-    Console.ReadLine();
 }
+Console.ReadLine();
 
