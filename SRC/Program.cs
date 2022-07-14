@@ -3,12 +3,14 @@ using System.Diagnostics;
 using System.Drawing;
 
 
-for(var index=0;index<=4;index++)
+for (var index = 0; index <= 6; index++)
 {
+    //int index = 6;
     var img = new Bitmap($@"C:\temp\structureChart{index}.png");
     var outputPicture = $@"C:\temp\OUT_structureChart{index}.png";
-
-    var stopWatch = new Stopwatch();
+//    var img = new Bitmap($@"C:\temp\debug.png");
+//var outputPicture = $@"C:\temp\OUT_debug.png";
+var stopWatch = new Stopwatch();
     stopWatch.Start();
 
     var blocks = img.ExtractRectangles();
@@ -26,10 +28,10 @@ for(var index=0;index<=4;index++)
     img.Save(outputPicture);
 
 
-    //Process.Start("C:\\windows\\system32\\rundll32.exe",
-    //    "C:\\WINDOWS\\System32\\shimgvw.dll,ImageView_Fullscreen "
-    //    + outputPicture);
-    Console.WriteLine($"[{outputPicture}] END in {stopWatch.Elapsed.TotalSeconds} seconds / {blocks.Length} blocks");
+//Process.Start("C:\\windows\\system32\\rundll32.exe",
+//    "C:\\WINDOWS\\System32\\shimgvw.dll,ImageView_Fullscreen "
+//    + outputPicture);
+Console.WriteLine($"[{outputPicture}] END in {stopWatch.Elapsed.TotalSeconds} seconds / {blocks.Length} blocks");
 }
 Console.ReadLine();
 
