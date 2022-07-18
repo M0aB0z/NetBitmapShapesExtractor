@@ -64,25 +64,6 @@ namespace ShapesDetector
             return res.ToArray();
         }
 
-        private static RectangleF[] ExtractCompleteShapes(this Dictionary<(int, int), Guid> blocksIdsPerPositions, int tolerance)
-        {
-            var res = new List<RectangleF>();
-
-            var groupPoints = blocksIdsPerPositions.GroupBy(x => x.Value).ToArray();
-            foreach (var pointsPerGroupId in blocksIdsPerPositions.GroupBy(x => x.Value))
-            {
-                var points = pointsPerGroupId.Select(x => x.Key).ToArray();
-                var minX = points.Min(x => x.Item1);
-                var maxX = points.Max(x => x.Item1);
-                var minY = points.Min(x => x.Item2);
-                var maxY = points.Max(x => x.Item2);
-                var rect = new RectangleF(minX, minY, maxX - minX, maxY - minY);
-                if (rect.Width < 100 && rect.Height < 100)
-                    res.Add(rect);
-            }
-            return res.Where(block => !res.Any(x => x.Size.Height > block.Height && x.IntersectsWith(block))).ToArray();
-        }
-
         private enum Way // Need 1 diff between opposites
         {
             Right = 1,
@@ -99,7 +80,7 @@ namespace ShapesDetector
             var minY = groupsPoints.Min(x => x.Item2);
             var maxY = groupsPoints.Max(x => x.Item2);
 
-            return new RectangleF(minX, minY, maxX - minX, maxY - minY);
+            return new RectangleF(minX, minY, Math.Max(maxX - minX, 1), Math.Max(maxY - minY, 1));
         }
         private static bool IsInZone(this (int, int) point, RectangleF rec)
         {
@@ -121,7 +102,7 @@ namespace ShapesDetector
             {
                 var groupId = Guid.NewGuid();
                 var startPoint = points.OrderBy(x => x.Item2).ThenBy(x => x.Item1).First(); // From top, first left
-                var currentGroup = new Dictionary<(int, int), Guid> { { startPoint, groupId } };
+                var currentGroup = new List<(int, int)> { startPoint };
                 var currentPoint = (startPoint.Item1, startPoint.Item2);
                 var newPoints = new List<(int, int)>();
                 var path = new List<Way> { Way.Left };
@@ -130,47 +111,57 @@ namespace ShapesDetector
                 {
                     var lastWay = path.Last();
                     newPoints.Clear();
-
-                    foreach (var way in ((Way[])Enum.GetValues(typeof(Way))).OrderBy(x => Math.Abs((int)lastWay - (int)x)))
+                    if (currentPoint == (162, 140))
                     {
-                        if (way.IsValidPath(lastWay))
-                        {
-                            var wayPoints = way switch
-                            {
-                                Way.Bottom => points.FindBottomBlocks(currentPoint),
-                                Way.Top => points.FindTopBlocks(currentPoint),
-                                Way.Left => points.FindLeftBlocks(currentPoint),
-                                _ => points.FindRightBlocks(currentPoint),
-                            };
-                            if (wayPoints.Any() && !wayPoints.Any(point => currentGroup.ContainsKey(point)))
-                            {
-                                //Console.WriteLine($"[{way}]\t{string.Join(',', wayPoints.Select(pt => "(" + pt.Item1 + "," + pt.Item2 + ")"))}");
-                                path.Add(way);
-                                newPoints.AddRange(wayPoints);
-                                currentPoint = way switch
-                                {
-                                    Way.Bottom => newPoints.MaxBy(x => x.Item2),
-                                    Way.Top => newPoints.MinBy(x => x.Item2),
-                                    Way.Left => newPoints.MinBy(x => x.Item1),
-                                    _ => newPoints.MaxBy(x => x.Item1),
-                                };
-                            }
-                            else
-                            {
-                                newPoints.AddRange(wayPoints.Where(point => !currentGroup.ContainsKey(point)));
-                            }
-                        }
-                    }
 
-                    newPoints.ForEach(point => currentGroup[point] = groupId);
+                    }
+                    //foreach (var way in ((Way[])Enum.GetValues(typeof(Way))).OrderBy(x => Math.Abs((int)lastWay - (int)x)))
+                    {
+                        var horizontalWay = currentPoint.Item1 < startPoint.Item1 ? Way.Left : Way.Right;
+                        var verticalWay = currentPoint.Item2 < startPoint.Item2 ? Way.Top : Way.Bottom;
+                        var ways = Math.Abs(currentPoint.Item1 - startPoint.Item1) > Math.Abs(currentPoint.Item2 - startPoint.Item2)
+                                ? new List<Way> { horizontalWay, verticalWay }
+                                : new List<Way> { verticalWay, horizontalWay };
+                        ways.AddRange(new[] { (verticalWay == Way.Top ? Way.Bottom : Way.Top), (horizontalWay == Way.Left ? Way.Right : Way.Left) });
+                        var way = ways.First(x => x.IsValidPath(lastWay));
+                        var wayPoints = way switch
+                        {
+                            Way.Bottom => points.FindBottomBlocks(currentPoint),
+                            Way.Top => points.FindTopBlocks(currentPoint),
+                            Way.Left => points.FindLeftBlocks(currentPoint),
+                            _ => points.FindRightBlocks(currentPoint),
+                        };
+                        if (wayPoints.Any() && !wayPoints.Any(point => currentGroup.Contains(point)))
+                        {
+                            Console.WriteLine($"[{way}]\t{string.Join(',', wayPoints.Select(pt => "(" + pt.Item1 + "," + pt.Item2 + ")"))}");
+                            path.Add(way);
+                            newPoints.AddRange(wayPoints);
+                            currentPoint = way switch
+                            {
+                                Way.Bottom => newPoints.MaxBy(x => x.Item2),
+                                Way.Top => newPoints.MinBy(x => x.Item2),
+                                Way.Left => newPoints.MinBy(x => x.Item1),
+                                _ => newPoints.MaxBy(x => x.Item1),
+                            };
+                        }
+                        else
+                        {
+                            newPoints.AddRange(wayPoints.Where(point => !currentGroup.Contains(point)));
+                        }
+
+                    }
+                    if (newPoints.Any())
+                        res.Add(newPoints.ToRectangle());
+                    currentGroup.AddRange(newPoints);
+
                 } while (newPoints.Any());
-                var rect = currentGroup.Keys.ToRectangle();
+                var rect = currentGroup.ToRectangle();
                 points = points.Where(pt => !pt.IsInZone(rect)).ToList();
-                pointsGroups[groupId] = currentGroup.Keys.ToArray();
-                if(rect.Width >= minWidthBlock && rect.Height > minHeightBlock)
-                {
-                    res.Add(rect);
-                }
+                pointsGroups[groupId] = currentGroup.ToArray();
+                //if (rect.Width >= minWidthBlock && rect.Height > minHeightBlock)
+                //{
+                //    res.Add(rect);
+                //}
             }
 
             return res.ToArray();
