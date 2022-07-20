@@ -8,7 +8,7 @@ using System.Drawing;
 //int index = 6;
 //var img = new Bitmap($@"C:\temp\structureChart{index}.png");
 //var outputPicture = $@"C:\temp\OUT_structureChart{index}.png";
-var img = new Bitmap($@"C:\temp\debug.png");
+var img = new Bitmap($@"C:\temp\structureChart6.png");
 var outputPicture = $@"C:\temp\OUT_debug.png";
 var stopWatch = new Stopwatch();
 stopWatch.Start();
@@ -22,14 +22,14 @@ if (File.Exists(outputPicture))
 
 var colors = new[] { new SolidBrush(Color.Red), new SolidBrush(Color.Green), new SolidBrush(Color.Black) };
 var colorIdx = 0;
-using (Graphics g = Graphics.FromImage(img))
-    foreach (var block in blocks)
-    {
-        g.FillRectangle(colors[colorIdx++ % colors.Length], block);
-    }
-//if (blocks.Any())
-//    using (Graphics g = Graphics.FromImage(img))
-//        g.FillRectangles(new SolidBrush(Color.FromArgb(80, Color.Red)), blocks.ToArray());
+//using (Graphics g = Graphics.FromImage(img))
+//    foreach (var block in blocks)
+//    {
+//        g.FillRectangle(colors[colorIdx++ % colors.Length], block);
+//    }
+if (blocks.Any())
+    using (Graphics g = Graphics.FromImage(img))
+        g.FillRectangles(new SolidBrush(Color.FromArgb(80, Color.Red)), blocks.ToArray());
 
 
 img.Save(outputPicture);

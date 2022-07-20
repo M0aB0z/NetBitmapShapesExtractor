@@ -47,121 +47,107 @@ namespace ShapesDetector
             return x >= rec.X && x <= (rec.Width + rec.X)
                 && y >= rec.Y && y <= (rec.Height + rec.Y);
         }
-        private static bool HasTwoSides(this (int, int) point, IEnumerable<(int, int)> points)
-        {
-            int sides = 0;
-            int x = point.Item1, y = point.Item2;
-            if (points.Contains((x + 1, y)) && points.Contains((x + 2, y)) && points.Contains((x + 3, y)))
-                sides++;
-            if (points.Contains((x, y + 1)) && points.Contains((x, y + 2)) && points.Contains((x, y + 3)))
-                sides++;
-            if (points.Contains((x - 1, y + 1)) && points.Contains((x - 2, y + 1)) && points.Contains((x - 3, y + 1)))
-                sides++;
-            if (points.Contains((x + 1, y + 1)) && points.Contains((x + 2, y + 2)) && points.Contains((x + 3, y + 3)))
-                sides++;
-            if (points.Contains((x - 1, y + 1)) && points.Contains((x - 2, y + 2)) && points.Contains((x - 3, y + 3)))
-                sides++;
-            return sides >= 2;
-        }
         private enum Way
         {
-            Right = 0,
-            Bottom = 1,
-            BottomRight = 2,
-            BottomLeft = 3,
-            Left = 4,
+            Left = 0,
+            Right = 1,
         }
         private static Way GetSymetricMove(this Way way)
         {
             return way switch
             {
                 Way.Left => Way.Right,
-                Way.Right => Way.Left,
-                Way.BottomLeft => Way.BottomRight,
-                Way.BottomRight => Way.BottomLeft,
-                _ => Way.Bottom
+                _ => Way.Left,
+                //_ => Way.Bottom
             };
         }
         private static double Distance(this (int, int) pointA, (int, int) pointB) => Math.Sqrt((Math.Pow(pointB.Item1 - pointA.Item1, 2)) + (Math.Pow(pointB.Item2 - pointA.Item2, 2)));
-        private static (int, int) GetClothestPoint(this (int, int) point, Way way, IEnumerable<(int, int)> points)
+        private static (int, int) GetClothestPoint(this (int, int) point, Way way, IEnumerable<(int, int)> points, int tolerance)
         {
             int x = point.Item1, y = point.Item2;
             return way switch
             {
-                Way.Left => points.Contains((x - 1, y)) ? (x - 1, y) : default,
-                Way.Right => points.Contains((x + 1, y)) ? (x + 1, y) : default,
-                Way.BottomLeft => points.Contains((x - 1, y + 1)) ? (x - 1, y + 1) : default,
-                Way.BottomRight => points.Contains((x + 1, y + 1)) ? (x + 1, y + 1) : default,
-                _ => points.Contains((x, y + 1)) ? (x, y + 1) : default
+                Way.Left => point.SearchPoint(points, x => x - 1, tolerance),
+                Way.Right => point.SearchPoint(points, x => x + 1, tolerance),
+                _ => point.SearchPoint(points, x => x, tolerance),
             };
         }
+        private static (int, int) SearchPoint(this (int, int) point, IEnumerable<(int, int)> points, Func<int, int> transformX, int tolerance)
+        {
+            int x = point.Item1, y = point.Item2;
+            for (int currentX = x, triesX = 0; triesX < tolerance; currentX = transformX(currentX), triesX++)
+                for (int currentY = y; currentY <= y + tolerance; currentY++)
+                    if (points.Contains((currentX, currentY)) && point != (currentX, currentY))
+                        return (currentX, currentY);
+            return default;
+        }
+
         private static IEnumerable<(int, int)> ExtractShape(this (int, int) startPoint, IEnumerable<(int, int)> points, int tolerance, int minHeightBlock = 15, int minWidthBlock = 40)
         {
             var shape = new List<(int, int)> { startPoint };
-            (int, int) clothestPointA = startPoint, oppositePoint = startPoint;
+            var startEndSegment = startPoint.Item1;
+            while (points.Contains((++startEndSegment, startPoint.Item2)))
+                shape.Add((startEndSegment, startPoint.Item2));
+            var ways = Enum.GetValues<Way>();
+            (int, int) clothestPointA = startPoint, oppositePoint = (startEndSegment - 1, startPoint.Item2), middlePoint = ((startPoint.Item1 + (startEndSegment - startPoint.Item1) / 2), startPoint.Item2);
             bool found;
             do
             {
-                var ways =
-                    clothestPointA.Item1 < oppositePoint.Item1
-                    ? Enum.GetValues(typeof(Way)).Cast<Way>().OrderBy(x => (int)x).ToArray()
-                    : Enum.GetValues(typeof(Way)).Cast<Way>().OrderByDescending(x => (int)x).ToArray();
                 found = false;
-                var wayIdx = 0;
-                do
+                foreach (var way in ways)
                 {
-                    var way = ways[wayIdx];
-                    var tmpClothestPointA = clothestPointA.GetClothestPoint(way, points);
+                    var tmpClothestPointA = clothestPointA.GetClothestPoint(way, points, tolerance);
                     if (tmpClothestPointA != default && !shape.Contains(tmpClothestPointA))
                     {
-                        oppositePoint = oppositePoint.GetClothestPoint(way.GetSymetricMove(), points);
-                        if (oppositePoint != default)
+                        var tmpOppositePoint = oppositePoint.GetClothestPoint(way.GetSymetricMove(), points, tolerance);
+                        if (tmpOppositePoint != default)
                         {
-                            var distA = clothestPointA.Distance(startPoint);
-                            var distB = oppositePoint.Distance(startPoint);
-                            var diff = Math.Abs(distA - distB);
-                            //Console.WriteLine($"{clothestPointA} {oppositePoint} [{diff}]");
-                            if (diff < 3)
+                            var diff = Math.Abs(tmpClothestPointA.Distance(middlePoint) - tmpOppositePoint.Distance(middlePoint));
+                            if (diff < tolerance)
                             {
                                 clothestPointA = tmpClothestPointA;
+                                oppositePoint = tmpOppositePoint;
                                 shape.AddRange(new[] { clothestPointA, oppositePoint });
                                 found = true;
-                                //Console.ReadKey();
+                                break;
                             }
                         }
                     }
-                } while (!found && ++wayIdx < ways.Length);
+                }
 
             } while (found && oppositePoint != clothestPointA);
 
-
-            return shape;
+            //return shape;
+            return oppositePoint.Distance(clothestPointA) <= tolerance ? shape : Array.Empty<(int, int)>();
 
         }
-
+        private static double Area(this RectangleF rec) => rec.Width * rec.Height;
         private static RectangleF[] ExtractShapes(this List<(int, int)> points, int tolerance, int minHeightBlock = 15, int minWidthBlock = 40)
         {
             if (!points.Any())
                 return Array.Empty<RectangleF>();
 
+            //return (192,5).ExtractShape(points, tolerance, minHeightBlock, minWidthBlock).Select(x => new RectangleF(x.Item1, x.Item2, 1,1)).ToArray();
             var res = new List<RectangleF>();
-
-            var pointsPerGroups = new Dictionary<Guid, (int, int)[]>();
-
-            (int, int) currentPoint = default;
-
-            do
+            var usedPoints = new List<(int, int)>();
+            foreach (var currentPoint in points.OrderBy(x => x.Item2).ThenBy(x => x.Item1))
             {
-                //currentPoint = points.OrderBy(x => x.Item2).ThenBy(x => x.Item1).FirstOrDefault();
-                currentPoint = (215, 36);
-                if (currentPoint != default)
-                {
-                    var shape = currentPoint.ExtractShape(points, tolerance).Select(x => new RectangleF(x.Item1, x.Item2, 1, 1)).ToArray();
-                    return shape;
-                }
-            } while (currentPoint != default);
+                if (usedPoints.Contains(currentPoint))
+                    continue;
 
-            return res.ToArray();
+                var shapePoints = currentPoint.ExtractShape(points, tolerance);
+                if (shapePoints.Any())
+                {
+                    var rect = shapePoints.ToRectangle();
+                    if (rect.Width >= minWidthBlock && rect.Height >= minHeightBlock)
+                    {
+                        usedPoints.AddRange(shapePoints);
+                        res.Add(rect);
+                    }
+                }
+            }
+
+            return res.Where(x => !res.Any(y => y.Area() > x.Area() && y.IntersectsWith(x))).ToArray();
 
         }
         public static RectangleF[] ExtractShapes(this Bitmap img, int tolerance = 3, int minHeightBlock = 15, int minWidthBlock = 40)
