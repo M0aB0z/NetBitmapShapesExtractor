@@ -8,7 +8,7 @@ using System.Drawing;
 //int index = 6;
 //var img = new Bitmap($@"C:\temp\structureChart{index}.png");
 //var outputPicture = $@"C:\temp\OUT_structureChart{index}.png";
-var img = new Bitmap($@"C:\temp\structureChart6.png");
+var img = new Bitmap($@"C:\temp\Debug2.png");
 var outputPicture = $@"C:\temp\OUT_debug.png";
 var stopWatch = new Stopwatch();
 stopWatch.Start();
