@@ -7,6 +7,12 @@ public class Shape
     public int Width { get; private set; }
     public int Height { get; private set; }
 
+    public bool Contains(PixelPoint point)
+    {
+        return point.X >= X && point.X <= X + Width
+            && point.Y >= Y && point.Y <= Y + Height;
+    }
+
     public Shape(IEnumerable<PixelPoint> pixels)
     {
         var minX = pixels.Min(x => x.X);

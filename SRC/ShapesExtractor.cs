@@ -119,13 +119,16 @@ public static class ShapesExtractor
             stop = true; // no more symetric points found
         }
 
-
-        var shape = new Shape(shapePoints);
-        if (shape.Width >= minWidthBlock && shape.Height >= minHeightBlock)
+        if(completeShape)
         {
-            res.Add(shape);
-            return res.ToArray();
+            var shape = new Shape(shapePoints);
+            if (shape.Width >= minWidthBlock && shape.Height >= minHeightBlock)
+            {
+                res.Add(shape);
+                return res.ToArray();
+            }
         }
+
         return res.ToArray();
         //return res.Where(x => !res.Any(y => y.Area() > x.Area() && y.IntersectsWith(x))).ToArray();
     }
@@ -139,6 +142,8 @@ public static class ShapesExtractor
             for (int currentLeft = 0; currentLeft < img.Width; currentLeft++)
             {
                 // if pixel is in a known shape, skip it
+                if(shapes.Any(shape => shape.Contains(new PixelPoint(currentLeft, currentTop))))
+                    continue;
 
                 var pixel = img.GetPixel(currentLeft, currentTop);
                 if (pixel.Color.IsContrast(baseColor) && img.IsBorder(currentLeft, currentTop, baseColor)) // Contrast detected
