@@ -16,11 +16,12 @@ public static class ShapesExtractor
         {
             for (int currentLeft = 0; currentLeft < img.Width; currentLeft++)
             {
+                var pixel = img.GetPixel(currentLeft, currentTop);
+
                 // if pixel is in a known shape, skip it
-                if (shapes.Any(shape => shape.Contains(new PixelPoint(currentLeft, currentTop))))
+                if (shapes.Any(shape => shape.Contains(pixel.Point)))
                     continue;
 
-                var pixel = img.GetPixel(currentLeft, currentTop);
                 if (pixel.Color.IsContrast(baseColor) && img.IsBorder(currentLeft, currentTop, baseColor)) // Contrast detected
                 {
                     var endSegmentPoint = pictureManager.FindEndSegmentPoint(pixel.Point);
@@ -28,8 +29,8 @@ public static class ShapesExtractor
                     if (newShapes.Length > 0)
                     {
                         currentLeft += newShapes[0].Width;
-                        shapes.AddRange(newShapes);
-                        return shapes.ToArray();
+                        shapes.AddRange(newShapes.Distinct(ShapeComparer.Instance));
+                        //return shapes.ToArray();
                     }
                     //return shapes.ToArray();
                 }

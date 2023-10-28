@@ -1,4 +1,6 @@
-﻿namespace ShapesDetector.Models;
+﻿using System.Diagnostics.CodeAnalysis;
+
+namespace ShapesDetector.Models;
 
 public class Shape
 {
@@ -32,3 +34,14 @@ public class Shape
 
     public override string ToString() => $"({X},{Y}) ({Width},{Height})";
 }
+
+public class ShapeComparer : IEqualityComparer<Shape>
+{
+    public static readonly ShapeComparer Instance = new ShapeComparer();
+
+    public bool Equals(Shape a, Shape b)
+    => a?.X == b?.X && a?.Y == b?.Y && a?.Width == b?.Width && a?.Height == b?.Height;
+    public int GetHashCode([DisallowNull] Shape obj)
+    => obj.X.GetHashCode() ^ obj.Y.GetHashCode() ^ obj.Width.GetHashCode() ^ obj.Height.GetHashCode();
+}
+

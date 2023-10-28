@@ -10,7 +10,7 @@ internal static class PixelPointExtensions
         PixelColor baseColor,
         IEnumerable<PixelPoint> currentShape, int tolerance, bool wayLeft)
     {
-        var tries = 0;
+        int tries = 0, distanceWithContrast = 0;
         var matches = new List<(int, int)>();
         for (int currentX = wayLeft ? pointA.X - 1 : pointA.X + 1; (wayLeft ? currentX > 0 : currentX < img.Width) && tries < tolerance; currentX += (wayLeft ? -1 : 1))
         {
@@ -22,20 +22,22 @@ internal static class PixelPointExtensions
             {
                 matches.Add((currentX, pointA.Y));
                 matches.Add((currentX, pointB.Y));
-                tries--;
+                distanceWithContrast++;
+                if (distanceWithContrast > tolerance)
+                    tries = 0;
             }
             else
                 tries++;
         }
         return matches;
     }
-    internal static IEnumerable<(int,int)> FindLastVerticalSymetricContrast(this PixelPoint pointA,
+    internal static IEnumerable<(int, int)> FindLastVerticalSymetricContrast(this PixelPoint pointA,
         PixelPoint pointB,
         Picture img,
         PixelColor baseColor,
         IEnumerable<PixelPoint> currentShape, int tolerance, bool wayTop)
     {
-        var tries = 0;
+        int tries = 0, distanceWithContrast = 0;
         var matches = new List<(int, int)>();
         for (int currentY = wayTop ? pointA.Y - 1 : pointA.Y + 1; (wayTop ? currentY > 0 : currentY < img.Height) && tries < tolerance; currentY += (wayTop ? -1 : 1))
         {
@@ -47,7 +49,9 @@ internal static class PixelPointExtensions
             {
                 matches.Add((pointA.X, currentY));
                 matches.Add((pointB.X, currentY));
-                tries--;
+                distanceWithContrast++;
+                if (distanceWithContrast > tolerance)
+                    tries = 0;
             }
             else
                 tries++;

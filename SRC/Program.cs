@@ -3,7 +3,7 @@ using ShapesDetector.Models;
 using System.Diagnostics;
 using System.Drawing;
 
-var inputFilePath = $@"C:\temp\structureChart_DEBUG.png";
+var inputFilePath = $@"C:\temp\structureChart_DEBUG1.png";
 var outputPicture = $@"C:\temp\OUT_debug.png";
 var stopWatch = new Stopwatch();
 stopWatch.Start();
@@ -21,7 +21,8 @@ if (shapes.Any())
     {
         foreach (var shape in shapes)
         {
-            g.FillRectangle(new SolidBrush(Color.FromArgb(100, shape.Completed ? Color.Green : Color.Red)),
+
+            g.FillRectangle(new SolidBrush(Color.FromArgb(100, shape.Completed ? Color.Red : Color.Red)),
                 new RectangleF(shape.X, shape.Y, shape.Width, shape.Height));
         }
     }

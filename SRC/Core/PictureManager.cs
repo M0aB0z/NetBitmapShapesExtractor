@@ -21,24 +21,23 @@ namespace ShapesDetector.Core
             baseColor = img.GetBackgroundColor();
         }
 
-        internal PixelPoint[] GetNextMoves(PixelPoint pointA, PixelPoint pointB, PixelColor baseColor, IEnumerable<PixelPoint> shapePoints)
+        private PossibleMoveWay[] GetNextPossibleMoves(PixelPoint pointA, PixelPoint pointB, PixelColor baseColor, IEnumerable<PixelPoint> shapePoints)
         {
-            var res = new List<(PixelPoint, PixelPoint)>();
+            var res = new List<PossibleMoveWay>();
 
             var distances = new List<SearchWayDistance>
             {
-                new SearchWayDistance(SearchWays.Bottom, pointA.FindLastVerticalSymetricContrast(pointB, img, baseColor, shapePoints, tolerance, false)),
-                new SearchWayDistance(SearchWays.Top, pointA.FindLastVerticalSymetricContrast(pointB, img, baseColor, shapePoints, tolerance, true)),
-                new SearchWayDistance(SearchWays.Left, pointA.FindLastHorizontalSymetricContrast(pointB, img, baseColor, shapePoints, tolerance, true)),
-                new SearchWayDistance(SearchWays.Right, pointA.FindLastHorizontalSymetricContrast(pointB, img, baseColor, shapePoints, tolerance, false))
+                new SearchWayDistance(SearchWay.Bottom, pointA.FindLastVerticalSymetricContrast(pointB, img, baseColor, shapePoints, tolerance, false)),
+                new SearchWayDistance(SearchWay.Top, pointA.FindLastVerticalSymetricContrast(pointB, img, baseColor, shapePoints, tolerance, true)),
+                new SearchWayDistance(SearchWay.Left, pointA.FindLastHorizontalSymetricContrast(pointB, img, baseColor, shapePoints, tolerance, true)),
+                new SearchWayDistance(SearchWay.Right, pointA.FindLastHorizontalSymetricContrast(pointB, img, baseColor, shapePoints, tolerance, false))
             };
 
             var bestDistance = distances.MaxBy(x => x.Points.Count());
-            var newA = bestDistance.Transform(pointA);
-            var newB = bestDistance.Transform(pointB);
-            //Console.WriteLine($"[{bestDistance.Way}] {bestDistance.Distance} [{newA} | {newB}]");
-            //Console.ReadLine();
-            return bestDistance.Points.Select(point => new PixelPoint(point.Item1, point.Item2)).ToArray();
+            return distances.OrderBy(x => x.Points.Count())
+                .Where(x => x.Points.Any())
+                .Select(x => new PossibleMoveWay(x.Way, x.Points.Select(x => new PixelPoint(x.Item1, x.Item2)).ToArray()))
+                .ToArray();
         }
 
         internal PixelPoint FindEndSegmentPoint(PixelPoint point)
@@ -50,27 +49,30 @@ namespace ShapesDetector.Core
             return new PixelPoint(point.X + segmentWidth, point.Y);
         }
 
+        //todo: ensure borders segments
         internal Shape[] DetectShapes(List<PixelPoint> currentShapePoints)
         {
             var res = new List<Shape>();
-            var stop = false;
-            var completeShape = false;
             var pointA = currentShapePoints[currentShapePoints.Count - 2].Clone();
             var pointB = currentShapePoints[currentShapePoints.Count - 1].Clone();
-            while (!stop && !completeShape)
+
+            var possibleMoves = GetNextPossibleMoves(pointA, pointB, baseColor, currentShapePoints);
+
+            foreach (var move in possibleMoves)
             {
-                var nextMovesPoint = GetNextMoves(pointA, pointB, baseColor, currentShapePoints);
-                if (nextMovesPoint.Count() == 0) // no more symetric points found
-                    stop = true;
-                else
+                var completeShape = move.Points[move.Points.Count() - 2].Distance(move.Points[move.Points.Count() - 1]) < tolerance;
+                if (completeShape)
                 {
-                    pointA =  nextMovesPoint[currentShapePoints.Count - 2].Clone();
-                    pointB = nextMovesPoint[currentShapePoints.Count - 1].Clone();
-                    currentShapePoints.AddRange(nextMovesPoint);
-                    completeShape = pointA.Distance(pointB) < tolerance;
+                    var shape = new Shape(currentShapePoints, true);
+                    if(shape.Width > minWidthBlock && shape.Height > minHeightBlock)
+                        res.Add(shape);
                 }
+
+                var tmpPath = new List<PixelPoint>(currentShapePoints);
+                tmpPath.AddRange(move.Points);
+                res.AddRange(DetectShapes(tmpPath));
             }
-            res.Add(new Shape(currentShapePoints, completeShape));
+
             return res.ToArray();
             //return res.Where(x => !res.Any(y => y.Area() > x.Area() && y.IntersectsWith(x))).ToArray();
         }
