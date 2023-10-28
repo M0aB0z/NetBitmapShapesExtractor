@@ -26,4 +26,6 @@ public class PixelColor
         G = g;
         B = b;
     }
+
+    public override string ToString() => $"({R},{G},{B})";
 }

@@ -6,6 +6,7 @@ public class Shape
     public int Y { get; private set; }
     public int Width { get; private set; }
     public int Height { get; private set; }
+    public bool Completed { get; private set; }
 
     public bool Contains(PixelPoint point)
     {
@@ -13,7 +14,7 @@ public class Shape
             && point.Y >= Y && point.Y <= Y + Height;
     }
 
-    public Shape(IEnumerable<PixelPoint> pixels)
+    public Shape(IEnumerable<PixelPoint> pixels, bool completed)
     {
         var minX = pixels.Min(x => x.X);
         var maxX = pixels.Max(x => x.X);
@@ -25,5 +26,9 @@ public class Shape
 
         Width = Math.Max(maxX - minX, 1);
         Height = Math.Max(maxY - minY, 1);
+
+        Completed = completed;
     }
+
+    public override string ToString() => $"({X},{Y}) ({Width},{Height})";
 }

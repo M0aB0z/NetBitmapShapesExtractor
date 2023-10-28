@@ -1,4 +1,6 @@
-﻿using System.Drawing;
+﻿using ShapesDetector.Extensions;
+using System.Drawing;
+using System.Reflection;
 
 namespace ShapesDetector.Models;
 
@@ -7,6 +9,8 @@ public abstract class Picture
     public abstract int Width { get; }
     public abstract int Height { get; }
     public abstract Pixel GetPixel(int x, int y);
+    public bool IsContrastPoint(int x, int y, PixelColor baseColor)
+        => GetPixel(x, y)?.Color?.IsContrast(baseColor) ?? false;
     public abstract void Save(string path);
 
     public bool IsBorder(int x, int y, PixelColor color)
@@ -26,6 +30,7 @@ public abstract class Picture
             GetPixel(0, 0).Color, GetPixel(0, Height - 1).Color, GetPixel(Width - 1, 0).Color, GetPixel(Width - 1, Height - 1).Color };
         return colors.GroupBy(x => x).OrderByDescending(y => y.Count()).First().Key;
     }
+
 }
 
 public class BitmapPicture : Picture

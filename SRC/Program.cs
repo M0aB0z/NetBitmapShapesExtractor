@@ -9,16 +9,22 @@ var stopWatch = new Stopwatch();
 stopWatch.Start();
 
 var img = new BitmapPicture(inputFilePath);
-var blocks = img.ExtractShapes();
+var shapes = img.ExtractShapes();
 
 stopWatch.Stop();
 
 if (File.Exists(outputPicture))
     File.Delete(outputPicture);
 
-if (blocks.Any())
+if (shapes.Any())
     using (Graphics g = Graphics.FromImage(img.bmp))
-        g.FillRectangles(new SolidBrush(Color.FromArgb(100, Color.Red)), blocks.Select(b => new RectangleF(b.X, b.Y, b.Width, b.Height)).ToArray());
+    {
+        foreach (var shape in shapes)
+        {
+            g.FillRectangle(new SolidBrush(Color.FromArgb(100, shape.Completed ? Color.Green : Color.Red)),
+                new RectangleF(shape.X, shape.Y, shape.Width, shape.Height));
+        }
+    }
 
 img.Save(outputPicture);
 
@@ -26,6 +32,6 @@ Process.Start("C:\\windows\\system32\\rundll32.exe",
     "C:\\WINDOWS\\System32\\shimgvw.dll,ImageView_Fullscreen "
     + outputPicture);
 
-Console.WriteLine($"[{outputPicture}] END in {stopWatch.Elapsed.TotalSeconds} seconds / {blocks.Length} blocks");
+Console.WriteLine($"[{outputPicture}] END in {stopWatch.Elapsed.TotalSeconds} seconds / {shapes.Length} blocks");
 Console.ReadLine();
 

@@ -14,17 +14,18 @@ public class PixelPoint : IEquatable<PixelPoint>
         Y = y;
     }
 
-    public bool NotInShape(IEnumerable<PixelPoint> points)
-    {
-        var notInShape = !points.Contains(this, PixelPointComparer.Instance);
-        return notInShape;
-    }
+    public bool InShape(IEnumerable<PixelPoint> points)
+    => points.Contains(this, PixelPointComparer.Instance);
 
     public double Distance(PixelPoint other)
         => Math.Sqrt(Math.Pow(other.X - X, 2) + Math.Pow(other.Y - Y, 2));
 
+    public PixelPoint Clone() => new(X, Y);
+
     public bool Equals(PixelPoint other)
     => other?.X == X && other?.Y == Y;
+
+    public override string ToString() => $"({X},{Y})";
 }
 
 public class PixelPointComparer : IEqualityComparer<PixelPoint>
