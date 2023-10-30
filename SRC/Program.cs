@@ -3,7 +3,7 @@ using ShapesDetector.Models;
 using System.Diagnostics;
 using System.Drawing;
 
-var inputFilePath = $@"C:\temp\structureChart_DEBUG1.png";
+var inputFilePath = $@"C:\temp\structureChart_DEBUG.png";
 var outputPicture = $@"C:\temp\OUT_debug.png";
 var stopWatch = new Stopwatch();
 stopWatch.Start();

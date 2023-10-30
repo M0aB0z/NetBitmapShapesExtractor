@@ -12,16 +12,31 @@ internal static class PixelPointExtensions
     {
         int tries = 0, distanceWithContrast = 0;
         var matches = new List<(int, int)>();
-        for (int currentX = wayLeft ? pointA.X - 1 : pointA.X + 1; (wayLeft ? currentX > 0 : currentX < img.Width) && tries < tolerance; currentX += (wayLeft ? -1 : 1))
+        for (
+            int currentXA = wayLeft ? pointA.X - 1 : pointA.X + 1,
+            currentXB = wayLeft ? pointB.X + 1 : pointB.X - 1
+            ; (wayLeft ? currentXA > 0 : currentXA < img.Width) && tries < tolerance;
+            currentXA += (wayLeft ? -1 : 1), currentXB += (wayLeft ? 1 : -1))
         {
-            if (new PixelPoint(currentX, pointA.Y).InShape(currentShape))
+            if (new PixelPoint(currentXA, pointA.Y).InShape(currentShape))
                 return matches;
             if (
-                   img.IsContrastPoint(currentX, pointA.Y, baseColor)
-                && img.IsContrastPoint(currentX, pointB.Y, baseColor))
+                   img.IsContrastPoint(currentXA, pointA.Y, baseColor)
+                && img.IsContrastPoint(currentXB, pointB.Y, baseColor)
+                && (!img.IsContrastPoint(currentXA, pointA.Y - 1, baseColor)
+                || img.IsContrastPoint(currentXA, pointA.Y + 1, baseColor)
+                || img.IsContrastPoint(currentXA + (wayLeft ? -2 : 2), pointA.Y - 1, baseColor)
+                || img.IsContrastPoint(currentXA + (wayLeft ? -2 : 2), pointA.Y + 1, baseColor)
+                )
+                && (!img.IsContrastPoint(currentXB, pointB.Y - 1, baseColor)
+                || img.IsContrastPoint(currentXB, pointB.Y + 1, baseColor)
+                || img.IsContrastPoint(currentXB + (wayLeft ? -2 : 2), pointB.Y - 1, baseColor)
+                || img.IsContrastPoint(currentXB + (wayLeft ? -2 : 2), pointB.Y + 1, baseColor)
+                )
+                )
             {
-                matches.Add((currentX, pointA.Y));
-                matches.Add((currentX, pointB.Y));
+                matches.Add((currentXA, pointA.Y));
+                matches.Add((currentXB, pointB.Y));
                 distanceWithContrast++;
                 if (distanceWithContrast > tolerance)
                     tries = 0;
@@ -45,7 +60,15 @@ internal static class PixelPointExtensions
                 return matches;
             if (
                    img.IsContrastPoint(pointA.X, currentY, baseColor)
-                && img.IsContrastPoint(pointB.X, currentY, baseColor))
+                && img.IsContrastPoint(pointB.X, currentY, baseColor)
+                && (!img.IsContrastPoint(pointA.X - 1, currentY, baseColor)
+                    || !img.IsContrastPoint(pointA.X + 1, currentY, baseColor)
+                    || !img.IsContrastPoint(pointA.X, currentY + (wayTop ? 2 : -2), baseColor) // round corner
+                    )
+                && (!img.IsContrastPoint(pointB.X - 1, currentY, baseColor)
+                    || !img.IsContrastPoint(pointB.X + 1, currentY, baseColor)
+                    || !img.IsContrastPoint(pointB.X, currentY + (wayTop ? 2 : -2), baseColor) // round corner
+                    ))
             {
                 matches.Add((pointA.X, currentY));
                 matches.Add((pointB.X, currentY));
@@ -57,15 +80,5 @@ internal static class PixelPointExtensions
                 tries++;
         }
         return matches;
-    }
-    internal static PixelPoint SearchDiagonalPoint(this PixelPoint point, Picture img, PixelColor baseColor, IEnumerable<PixelPoint> currentShape, int tolerance, bool wayTop, bool wayRight)
-    {
-        int x = point.X, y = point.Y;
-        var isEndYLoop = (int currentY) => wayTop ? currentY >= y - tolerance : currentY <= y + tolerance;
-        for (int currentY = y; isEndYLoop(currentY); currentY += (wayTop ? -1 : 1))
-            for (int currentX = x, triesX = 0; triesX <= tolerance; currentX += (wayRight ? 1 : -1), triesX++)
-                if ((img.GetPixel(currentX, currentY)?.Color?.IsContrast(baseColor) ?? false) && new PixelPoint(currentX, currentY).InShape(currentShape))
-                    return new PixelPoint(currentX, currentY);
-        return null;
     }
 }

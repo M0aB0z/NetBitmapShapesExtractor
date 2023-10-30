@@ -5,8 +5,6 @@ namespace ShapesDetector;
 
 public static class ShapesExtractor
 {
-
-
     public static Shape[] ExtractShapes(this Picture img, int tolerance = 3, int minHeightBlock = 15, int minWidthBlock = 40)
     {
         var pictureManager = new PictureManager(img, tolerance, minHeightBlock, minWidthBlock);
@@ -24,8 +22,8 @@ public static class ShapesExtractor
 
                 if (pixel.Color.IsContrast(baseColor) && img.IsBorder(currentLeft, currentTop, baseColor)) // Contrast detected
                 {
-                    var endSegmentPoint = pictureManager.FindEndSegmentPoint(pixel.Point);
-                    var newShapes = pictureManager.DetectShapes(new List<PixelPoint> { pixel.Point.Clone(), endSegmentPoint });
+                    var segmentPoints = pictureManager.FindEndSegmentPoint(pixel.Point);
+                    var newShapes = pictureManager.DetectShapes(segmentPoints);
                     if (newShapes.Length > 0)
                     {
                         currentLeft += newShapes[0].Width;
