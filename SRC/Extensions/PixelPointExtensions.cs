@@ -4,6 +4,44 @@ namespace ShapesDetector.Extensions;
 
 internal static class PixelPointExtensions
 {
+    internal static IEnumerable<(int, int)> FindSymetricConstrastedCorner(this PixelPoint pointA,
+PixelPoint pointB,
+Picture img,
+PixelColor baseColor, IEnumerable<PixelPoint> currentShape, int tolerance, bool wayTop, bool wayLeft)
+    {
+        var found = false;
+        var matches = new List<(int, int)>();
+        var possiblesA = new List<PixelPoint>();
+        for (int decalX = 0, xA = pointA.X, xB = pointB.X; decalX <= tolerance && !found; decalX++, xA += (wayLeft ? decalX * -1 : decalX), xB += (wayLeft ? decalX : decalX * -1))
+        {
+            for (int decalY = 0, y = pointA.Y; decalY <= tolerance && !found; decalY++, y += (wayTop ? decalY * -1 : decalY))
+            {
+                var testA = new PixelPoint(xA, y);
+                if (!testA.InShape(currentShape)
+                    && img.IsContrastPoint(testA.X, testA.Y, baseColor)
+                    && img.IsBorderPoint(testA.X, testA.Y, tolerance, baseColor))
+                {
+                    possiblesA.Add(testA);
+                }
+                var testB = new PixelPoint(xB, y);
+                if (!testB.InShape(currentShape)
+                    && img.IsContrastPoint(testB.X, testB.Y, baseColor)
+                    && img.IsBorderPoint(testB.X, testB.Y, tolerance, baseColor))
+                {
+                    var matchedA = possiblesA.FirstOrDefault(pt => Math.Abs(pt.Y - y) <= tolerance);
+                    if (matchedA != null)
+                    {
+                        matches.Add((matchedA.X, matchedA.Y));
+                        matches.Add((testB.X, testB.Y));
+                        found = true;
+                    }
+                }
+            }
+        }
+        //matches.AddRange(pointA.FindLastHorizontalSymetricContrast(pointB, img, baseColor, currentShape, tolerance, false));
+        return matches.ToArray();
+    }
+
     internal static IEnumerable<(int, int)> FindLastHorizontalSymetricContrast(this PixelPoint pointA,
         PixelPoint pointB,
         Picture img,
@@ -23,16 +61,8 @@ internal static class PixelPointExtensions
             if (
                    img.IsContrastPoint(currentXA, pointA.Y, baseColor)
                 && img.IsContrastPoint(currentXB, pointB.Y, baseColor)
-                && (!img.IsContrastPoint(currentXA, pointA.Y - 1, baseColor)
-                || img.IsContrastPoint(currentXA, pointA.Y + 1, baseColor)
-                || img.IsContrastPoint(currentXA + (wayLeft ? -2 : 2), pointA.Y - 1, baseColor)
-                || img.IsContrastPoint(currentXA + (wayLeft ? -2 : 2), pointA.Y + 1, baseColor)
-                )
-                && (!img.IsContrastPoint(currentXB, pointB.Y - 1, baseColor)
-                || img.IsContrastPoint(currentXB, pointB.Y + 1, baseColor)
-                || img.IsContrastPoint(currentXB + (wayLeft ? -2 : 2), pointB.Y - 1, baseColor)
-                || img.IsContrastPoint(currentXB + (wayLeft ? -2 : 2), pointB.Y + 1, baseColor)
-                )
+                && img.IsBorderPoint(currentXA, pointA.Y, tolerance, baseColor)
+                && img.IsBorderPoint(currentXB, pointB.Y, tolerance, baseColor)
                 )
             {
                 matches.Add((currentXA, pointA.Y));
@@ -46,6 +76,7 @@ internal static class PixelPointExtensions
         }
         return matches;
     }
+
     internal static IEnumerable<(int, int)> FindLastVerticalSymetricContrast(this PixelPoint pointA,
         PixelPoint pointB,
         Picture img,
@@ -61,14 +92,9 @@ internal static class PixelPointExtensions
             if (
                    img.IsContrastPoint(pointA.X, currentY, baseColor)
                 && img.IsContrastPoint(pointB.X, currentY, baseColor)
-                && (!img.IsContrastPoint(pointA.X - 1, currentY, baseColor)
-                    || !img.IsContrastPoint(pointA.X + 1, currentY, baseColor)
-                    || !img.IsContrastPoint(pointA.X, currentY + (wayTop ? 2 : -2), baseColor) // round corner
-                    )
-                && (!img.IsContrastPoint(pointB.X - 1, currentY, baseColor)
-                    || !img.IsContrastPoint(pointB.X + 1, currentY, baseColor)
-                    || !img.IsContrastPoint(pointB.X, currentY + (wayTop ? 2 : -2), baseColor) // round corner
-                    ))
+                && img.IsBorderPoint(pointA.X, currentY, tolerance, baseColor)
+                && img.IsBorderPoint(pointB.X, currentY, tolerance, baseColor)
+              )
             {
                 matches.Add((pointA.X, currentY));
                 matches.Add((pointB.X, currentY));

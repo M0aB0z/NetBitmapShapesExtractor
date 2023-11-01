@@ -20,10 +20,10 @@ public static class ShapesExtractor
                 if (shapes.Any(shape => shape.Contains(pixel.Point)))
                     continue;
 
-                if (pixel.Color.IsContrast(baseColor) && img.IsBorder(currentLeft, currentTop, baseColor)) // Contrast detected
+                if (pixel.Color.IsContrast(baseColor) && img.IsBorderPoint(currentLeft, currentTop, tolerance, baseColor)) // Contrast detected
                 {
-                    var segmentPoints = pictureManager.FindEndSegmentPoint(pixel.Point);
-                    var newShapes = pictureManager.DetectShapes(segmentPoints);
+                    var segmentPoints = pictureManager.FindStartPoint(pixel.Point);
+                    var newShapes = pictureManager.DetectShapes(segmentPoints, SearchWay.Bottom);
                     if (newShapes.Length > 0)
                     {
                         currentLeft += newShapes[0].Width;
