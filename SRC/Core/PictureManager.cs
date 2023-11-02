@@ -104,12 +104,22 @@ namespace ShapesDetector.Core
 
             var segmentWidth = 1;
             while (point.X + segmentWidth < img.Width - 1 && img.GetPixel(point.X + segmentWidth, point.Y).Color.IsContrast(baseColor))
-            {
                 segmentWidth++;
-            }
+
             var middlePoint = new PixelPoint(point.X + segmentWidth / 2, point.Y);
+
             points.Add(middlePoint);
-            points.Add(middlePoint.Clone());
+
+            if (segmentWidth % 2 == 0)
+            {
+                points.Add(middlePoint.Clone());
+            }
+            else
+            {
+                points.Add(new PixelPoint(middlePoint.X - 1, middlePoint.Y));
+                points.Add(new PixelPoint(middlePoint.X + 1, middlePoint.Y));
+            }
+
 
             return points;
         }
