@@ -21,27 +21,27 @@ namespace ShapesDetector.Core
             baseColor = img.GetBackgroundColor();
         }
 
-        private PossibleMoveWay[] GetNextPossibleMoves(PixelPoint pointA, PixelPoint pointB, PixelColor baseColor, IEnumerable<PixelPoint> shapePoints, SearchWay previousWay)
+        private PossibleMoveWay GetNextPossibleMove(PixelPoint pointA, PixelPoint pointB, PixelColor baseColor, IEnumerable<PixelPoint> shapePoints, SearchWay previousWay)
         {
             var res = new List<PossibleMoveWay>();
 
             List<SearchWayDistance> distances = (previousWay switch
             {
-               SearchWay.Right => new List<SearchWayDistance>
+                SearchWay.Right => new List<SearchWayDistance>
                {
                    new SearchWayDistance(SearchWay.Bottom, pointA.FindLastVerticalSymetricContrast(pointB, img, baseColor, shapePoints, tolerance, false)),
                    new SearchWayDistance(SearchWay.Top, pointA.FindLastVerticalSymetricContrast(pointB, img, baseColor, shapePoints, tolerance, true)),
                    new SearchWayDistance(SearchWay.BottomRight, pointA.FindSymetricConstrastedCorner(pointB, img, baseColor, shapePoints, tolerance, false, false)),
                    new SearchWayDistance(SearchWay.TopRight, pointA.FindSymetricConstrastedCorner(pointB, img, baseColor, shapePoints, tolerance, true, false))
                },
-               SearchWay.Left => new List<SearchWayDistance>
+                SearchWay.Left => new List<SearchWayDistance>
                {
                    new SearchWayDistance(SearchWay.Bottom, pointA.FindLastVerticalSymetricContrast(pointB, img, baseColor, shapePoints, tolerance, false)),
                    new SearchWayDistance(SearchWay.Top, pointA.FindLastVerticalSymetricContrast(pointB, img, baseColor, shapePoints, tolerance, true)),
                    new SearchWayDistance(SearchWay.BottomRight, pointA.FindSymetricConstrastedCorner(pointB, img, baseColor, shapePoints, tolerance, false, false)),
                    new SearchWayDistance(SearchWay.TopRight, pointA.FindSymetricConstrastedCorner(pointB, img, baseColor, shapePoints, tolerance, true, false))
                },
-               SearchWay.BottomRight => new List<SearchWayDistance>
+                SearchWay.BottomRight => new List<SearchWayDistance>
                {
                    new SearchWayDistance(SearchWay.Bottom, pointA.FindLastVerticalSymetricContrast(pointB, img, baseColor, shapePoints, tolerance, false)),
                    new SearchWayDistance(SearchWay.BottomRight, pointA.FindSymetricConstrastedCorner(pointB, img, baseColor, shapePoints, tolerance, false, false)),
@@ -66,17 +66,10 @@ namespace ShapesDetector.Core
                },
             }).Where(x => x.Points.Any()).ToList();
 
-
             var bestMove = distances.MaxBy(x => x.Points.Count());
-            if (bestMove != default)
-                return new[] { new PossibleMoveWay(bestMove.Way, bestMove.Points.Select(x => new PixelPoint(x.Item1, x.Item2)).ToArray()) };
-
-            return Array.Empty<PossibleMoveWay>();
-
-            return distances.Where(x => x.Points.Any())
-                .OrderBy(x => x.Points.Count())
-                .Select(x => new PossibleMoveWay(x.Way, x.Points.Select(x => new PixelPoint(x.Item1, x.Item2)).ToArray()))
-                .ToArray();
+            return bestMove != default
+                ? new PossibleMoveWay(bestMove.Way, bestMove.Points.Select(x => new PixelPoint(x.Item1, x.Item2)).ToArray())
+                : default;
         }
 
         internal List<PixelPoint> FindEndSegmentPoint(PixelPoint point)
@@ -90,7 +83,7 @@ namespace ShapesDetector.Core
                 segmentWidth++;
             }
 
-            while(points.Count < 2)
+            while (points.Count < 2)
                 points.Add(point.Clone());
 
             points.Add(point.Clone());
@@ -98,28 +91,20 @@ namespace ShapesDetector.Core
             return points;
         }
 
-        internal List<PixelPoint> FindStartPoint(PixelPoint point)
+        internal List<PixelPoint> FindStartPoints(PixelPoint point)
         {
             var points = new List<PixelPoint>();
 
             var segmentWidth = 1;
-            while (point.X + segmentWidth < img.Width - 1 && img.GetPixel(point.X + segmentWidth, point.Y).Color.IsContrast(baseColor))
+            while (point.X + segmentWidth < img.Width - 1 && img.GetPixel(point.X + segmentWidth + 1, point.Y).Color.IsContrast(baseColor))
                 segmentWidth++;
 
             var middlePoint = new PixelPoint(point.X + segmentWidth / 2, point.Y);
-
             points.Add(middlePoint);
 
-            if (segmentWidth % 2 == 0)
-            {
-                points.Add(middlePoint.Clone());
-            }
-            else
-            {
-                points.Add(new PixelPoint(middlePoint.X - 1, middlePoint.Y));
-                points.Add(new PixelPoint(middlePoint.X + 1, middlePoint.Y));
-            }
-
+            points.Add(segmentWidth % 2 == 0
+                ? middlePoint.Clone()
+                : new PixelPoint(middlePoint.X + 1, middlePoint.Y));
 
             return points;
         }
@@ -130,8 +115,8 @@ namespace ShapesDetector.Core
             var pointA = currentShapePoints[currentShapePoints.Count - 2].Clone();
             var pointB = currentShapePoints[currentShapePoints.Count - 1].Clone();
 
-            var possibleMoves = GetNextPossibleMoves(pointA, pointB, baseColor, currentShapePoints, previousWay);
-            if(possibleMoves.Length == 0)
+            var move = GetNextPossibleMove(pointA, pointB, baseColor, currentShapePoints, previousWay);
+            if (move == default)
             {
                 var completeShape = pointA.Distance(pointB) < tolerance;
                 var shape = new Shape(currentShapePoints, completeShape);
@@ -145,7 +130,7 @@ namespace ShapesDetector.Core
                     return res.ToArray();
                 }
             }
-            foreach (var move in possibleMoves)
+            else
             {
                 var newA = move.Points[move.Points.Count() - 2];
                 var newB = move.Points[move.Points.Count() - 1];

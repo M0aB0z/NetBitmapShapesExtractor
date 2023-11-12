@@ -3,27 +3,29 @@ using ShapesDetector.Models;
 using System.Diagnostics;
 using System.Drawing;
 
-var inputFilePath = $@"C:\temp\structureChart_DEBUG0.png";
+var inputFilePath = $@"C:\temp\structureChart_DEBUG.jpg";
 var outputPicture = $@"C:\temp\OUT_debug.png";
 var stopWatch = new Stopwatch();
 stopWatch.Start();
 
 var img = new BitmapPicture(inputFilePath);
-var shapes = img.ExtractShapes();
+var shapes = img.ExtractShapes(2, 15, 40);
 
 stopWatch.Stop();
 
 if (File.Exists(outputPicture))
     File.Delete(outputPicture);
 
+Console.WriteLine($"{shapes.Length} shapes detected");
+
 if (shapes.Any())
     using (Graphics g = Graphics.FromImage(img.bmp))
     {
         foreach (var shape in shapes)
         {
-
+            Console.WriteLine(shape);
             g.FillRectangle(new SolidBrush(Color.FromArgb(100, shape.Completed ? Color.Green : Color.Red)),
-                new RectangleF(shape.X, shape.Y, shape.Width, shape.Height));
+                new RectangleF(shape.X, shape.Y, shape.Width +1 , shape.Height +1));
         }
     }
 
