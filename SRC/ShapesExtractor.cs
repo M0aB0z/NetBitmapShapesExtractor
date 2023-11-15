@@ -9,27 +9,37 @@ public static class ShapesExtractor
     {
         var pictureManager = new PictureManager(img, tolerance, minHeightBlock, minWidthBlock);
         var shapes = new List<Shape>();
+        var validPoints = new List<PixelPoint>();
         var baseColor = img.GetBackgroundColor();
+        var borderPoints = new Dictionary<(int, int), Pixel>();
         for (int currentTop = 0; currentTop < img.Height; currentTop++)
         {
             for (int currentLeft = 0; currentLeft < img.Width; currentLeft++)
             {
                 var pixel = img.GetPixel(currentLeft, currentTop);
-
+                if (pixel.Color.IsContrast(baseColor))
+                {
+                    if (img.IsBorderPoint(currentLeft, currentTop, baseColor))
+                        borderPoints.Add((currentLeft, currentTop), pixel);
+                }
+            }
+        }
+        img.SetBorderPoints(borderPoints);
+        //return shapes.ToArray();
+        var pointsPerLines = borderPoints.GroupBy(x => x.Key.Item2).ToDictionary(x => x.Key, x => x.Select(y => y.Value).ToList());
+        foreach (var pixelsRow in pointsPerLines.OrderBy(x => x.Key))
+        {
+            foreach(var pixel in pixelsRow.Value)
+            {
                 // if pixel is in a known shape, skip it
                 if (shapes.Any(shape => shape.Contains(pixel.Point)))
                     continue;
 
-                if (pixel.Color.IsContrast(baseColor) && img.IsBorderPoint(currentLeft, currentTop, tolerance, baseColor)) // Contrast detected
+                var startPoints = pictureManager.FindStartPoints(pixel.Point);
+                var newShape = pictureManager.DetectShape(startPoints, SearchWay.Bottom);
+                if (newShape != default)
                 {
-                    var startPoints = pictureManager.FindStartPoints(pixel.Point);
-                    var newShapes = pictureManager.DetectShapes(startPoints, SearchWay.Bottom);
-                    if (newShapes.Length > 0)
-                    {
-                        currentLeft += newShapes[0].Width;
-                        shapes.AddRange(newShapes.Distinct(ShapeComparer.Instance));
-                        //return shapes.ToArray();
-                    }
+                    shapes.Add(newShape);
                     //return shapes.ToArray();
                 }
             }

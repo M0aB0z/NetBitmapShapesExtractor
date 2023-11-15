@@ -16,16 +16,17 @@ stopWatch.Stop();
 if (File.Exists(outputPicture))
     File.Delete(outputPicture);
 
-Console.WriteLine($"{shapes.Length} shapes detected");
+var validShapes = shapes.Where(x => x.Valid).ToArray();
+Console.WriteLine($"{shapes.Length} shapes detected / {validShapes.Length} valids");
 
 if (shapes.Any())
     using (Graphics g = Graphics.FromImage(img.bmp))
     {
-        foreach (var shape in shapes)
+        foreach (var shape in validShapes)
         {
             Console.WriteLine(shape);
-            g.FillRectangle(new SolidBrush(Color.FromArgb(100, shape.Completed ? Color.Green : Color.Red)),
-                new RectangleF(shape.X, shape.Y, shape.Width +1 , shape.Height +1));
+            g.FillRectangle(new SolidBrush(Color.FromArgb(100, shape.Valid ? Color.Green : Color.Red)),
+                new RectangleF(shape.X, shape.Y, shape.Width + 1, shape.Height + 1));
         }
     }
 

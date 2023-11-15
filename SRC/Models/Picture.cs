@@ -4,6 +4,8 @@ namespace ShapesDetector.Models;
 
 public abstract class Picture
 {
+    public Dictionary<(int, int), Pixel> BorderPoints { get; private set; }
+
     public abstract int Width { get; }
     public abstract int Height { get; }
     public abstract Pixel GetPixel(int x, int y);
@@ -11,18 +13,17 @@ public abstract class Picture
         => GetPixel(x, y)?.Color?.IsContrast(baseColor) ?? false;
     public abstract void Save(string path);
 
-    public bool IsBorderPoint(int x, int y, int tolerance, PixelColor baseColor)
+    public bool IsBorderPoint(int x, int y, PixelColor baseColor)
     {
-        for (var testX = x - tolerance; testX <= x + tolerance; testX++)
-        {
-            for (var testY = y - tolerance; testY <= y + tolerance; testY++)
-            {
-                if (!IsContrastPoint(testX, testY, baseColor))
-                    return true;
-            }
-        }
-        return false;
+        return (
+                !IsContrastPoint(x - 1, y, baseColor) ||
+                !IsContrastPoint(x + 1, y, baseColor) ||
+                !IsContrastPoint(x, y - 1, baseColor) ||
+                !IsContrastPoint(x, y + 1, baseColor));
     }
+
+    public bool IsKnownBorderPoint(int x, int y) => BorderPoints.ContainsKey((x, y));
+    public bool IsKnownBorderPoint(PixelPoint point) => BorderPoints.ContainsKey((point.X, point.Y));
 
     public PixelColor GetBackgroundColor()
     {
@@ -31,6 +32,10 @@ public abstract class Picture
         return colors.GroupBy(x => x).OrderByDescending(y => y.Count()).First().Key;
     }
 
+    internal void SetBorderPoints(Dictionary<(int, int), Pixel> borderPoints)
+    {
+        this.BorderPoints = borderPoints;
+    }
 }
 
 public class BitmapPicture : Picture

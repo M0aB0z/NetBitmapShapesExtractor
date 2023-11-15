@@ -17,16 +17,12 @@ PixelColor baseColor, IEnumerable<PixelPoint> currentShape, int tolerance, bool 
             for (int decalY = 0, y = pointA.Y; decalY <= tolerance && !found; decalY++, y += (wayTop ? decalY * -1 : decalY))
             {
                 var testA = new PixelPoint(xA, y);
-                if (!testA.InShape(currentShape)
-                    && img.IsContrastPoint(testA.X, testA.Y, baseColor)
-                    && img.IsBorderPoint(testA.X, testA.Y, tolerance, baseColor))
+                if (!testA.InShape(currentShape) && img.IsKnownBorderPoint(testA))
                 {
                     possiblesA.Add(testA);
                 }
                 var testB = new PixelPoint(xB, y);
-                if (!testB.InShape(currentShape)
-                    && img.IsContrastPoint(testB.X, testB.Y, baseColor)
-                    && img.IsBorderPoint(testB.X, testB.Y, tolerance, baseColor))
+                if (!testB.InShape(currentShape) && img.IsKnownBorderPoint(testB))
                 {
                     var matchedA = possiblesA.FirstOrDefault(pt => Math.Abs(pt.Y - y) <= tolerance);
                     if (matchedA != null)
@@ -59,10 +55,8 @@ PixelColor baseColor, IEnumerable<PixelPoint> currentShape, int tolerance, bool 
             if (new PixelPoint(currentXA, pointA.Y).InShape(currentShape))
                 return matches;
             if (
-                   img.IsContrastPoint(currentXA, pointA.Y, baseColor)
-                && img.IsContrastPoint(currentXB, pointB.Y, baseColor)
-                && img.IsBorderPoint(currentXA, pointA.Y, tolerance, baseColor)
-                && img.IsBorderPoint(currentXB, pointB.Y, tolerance, baseColor)
+                   img.IsKnownBorderPoint(currentXA, pointA.Y)
+                && img.IsKnownBorderPoint(currentXB, pointB.Y)
                 )
             {
                 matches.Add((currentXA, pointA.Y));
@@ -90,10 +84,8 @@ PixelColor baseColor, IEnumerable<PixelPoint> currentShape, int tolerance, bool 
             if (new PixelPoint(pointA.X, currentY).InShape(currentShape))
                 return matches;
             if (
-                   img.IsContrastPoint(pointA.X, currentY, baseColor)
-                && img.IsContrastPoint(pointB.X, currentY, baseColor)
-                && img.IsBorderPoint(pointA.X, currentY, tolerance, baseColor)
-                && img.IsBorderPoint(pointB.X, currentY, tolerance, baseColor)
+                img.IsKnownBorderPoint(pointA.X, currentY) 
+                && img.IsKnownBorderPoint(pointB.X, currentY)
               )
             {
                 matches.Add((pointA.X, currentY));

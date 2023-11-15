@@ -8,7 +8,7 @@ public class Shape
     public int Y { get; private set; }
     public int Width { get; private set; }
     public int Height { get; private set; }
-    public bool Completed { get; private set; }
+    public bool Valid { get; private set; }
 
     public bool Contains(PixelPoint point)
     {
@@ -16,8 +16,13 @@ public class Shape
             && point.Y >= Y && point.Y <= Y + Height;
     }
 
-    public Shape(IEnumerable<PixelPoint> pixels, bool completed)
+    public Shape(List<PixelPoint> pixels, int tolerance, int minWidth, int minHeight)
     {
+        var pointA = pixels[pixels.Count - 2].Clone();
+        var pointB = pixels[pixels.Count - 1].Clone();
+
+        var completeShape = pointA.Distance(pointB) < tolerance;
+
         var minX = pixels.Min(x => x.X);
         var maxX = pixels.Max(x => x.X);
         var minY = pixels.Min(x => x.Y);
@@ -29,7 +34,7 @@ public class Shape
         Width = Math.Max(maxX - minX, 1);
         Height = Math.Max(maxY - minY, 1);
 
-        Completed = completed;
+        Valid = Width >= minWidth && Height >= minHeight && completeShape;
     }
 
     public override string ToString() => $"({X},{Y}) ({Width},{Height})";

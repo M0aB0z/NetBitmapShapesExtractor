@@ -109,26 +109,18 @@ namespace ShapesDetector.Core
             return points;
         }
 
-        internal Shape[] DetectShapes(List<PixelPoint> currentShapePoints, SearchWay previousWay)
+        internal Shape DetectShape(List<PixelPoint> currentShapePoints, SearchWay previousWay)
         {
-            var res = new List<Shape>();
             var pointA = currentShapePoints[currentShapePoints.Count - 2].Clone();
             var pointB = currentShapePoints[currentShapePoints.Count - 1].Clone();
 
             var move = GetNextPossibleMove(pointA, pointB, baseColor, currentShapePoints, previousWay);
             if (move == default)
             {
-                var completeShape = pointA.Distance(pointB) < tolerance;
-                var shape = new Shape(currentShapePoints, completeShape);
-                ////DEBUG
-                //res.Add(shape);
-                //return res.ToArray();
-                ////DEBUG
-                if (completeShape && shape.Width > minWidthBlock && shape.Height > minHeightBlock)
-                {
-                    res.Add(shape);
-                    return res.ToArray();
-                }
+               
+                var shape = new Shape(currentShapePoints, tolerance, minWidthBlock, minHeightBlock);
+                if(shape.Valid)
+                    return shape;
             }
             else
             {
@@ -142,20 +134,19 @@ namespace ShapesDetector.Core
                     //Console.WriteLine("COMPLETED");
                     var subShapePoints = new List<PixelPoint>(currentShapePoints);
                     subShapePoints.AddRange(move.Points);
-                    var shape = new Shape(subShapePoints, completeShape);
+                    var shape = new Shape(subShapePoints, tolerance, minWidthBlock, minHeightBlock);
                     if (shape.Width > minWidthBlock && shape.Height > minHeightBlock)
                     {
-                        res.Add(shape);
-                        return res.ToArray();
+                        return shape;
                     }
                 }
 
                 var tmpPath = new List<PixelPoint>(currentShapePoints);
                 tmpPath.AddRange(move.Points);
-                res.AddRange(DetectShapes(tmpPath, move.Way));
+                return DetectShape(tmpPath, move.Way);
             }
 
-            return res.ToArray();
+            return default;
             //return res.Where(x => !res.Any(y => y.Area() > x.Area() && y.IntersectsWith(x))).ToArray();
         }
     }
